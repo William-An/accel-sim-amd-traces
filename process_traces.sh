@@ -28,6 +28,13 @@ clean_line() {
   printf "\r"; 
 }
 
+tracesDir=$1
+if [[ -z $tracesDir ]]; then
+	echo "Please enter a trace folder as an argument"
+	exit
+fi
+
+cp -r $tracesDir/* .
 postProcessor=./bin/post-traces-processing
 
 rm ./traces.log 2> /dev/null
