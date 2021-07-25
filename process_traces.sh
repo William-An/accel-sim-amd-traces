@@ -31,23 +31,26 @@ clean_line() {
 tracesDir=$1
 if [[ -z $tracesDir ]]; then
 	echo "Please enter a trace folder as an argument"
+	echo "Rsync will be used to copy the content of the trace folder into the local ./traces folder"
 	exit
 fi
 
-cp -r $tracesDir/* .
-postProcessor=./bin/post-traces-processing
+if [[ ! -e "./traces" ]]; then
+	mkdir traces
+fi
 
-rm ./traces.log 2> /dev/null
-rm ./traces.err 2> /dev/null
+rsync -avz $tracesDir/ ./traces
+postProcessor=$(readlink -f ./bin/post-traces-processing)
 
 # Loop through each benchmark trace folder
+cd ./traces
 traceDirs=*/
-numTraceDirs=$((`echo $traceDirs | wc -w` - 1))
+numTraceDirs=$((`echo $traceDirs | wc -w`))
 curr=0
 for traceDir in $traceDirs; do
-	if [[ "$traceDir" == "bin" ]]; then
-		continue;
-	fi
+	# if [[ "$traceDir" == "bin" ]]; then
+	#	continue;
+	# fi
 
 	traceName=${traceDir%/}
 
@@ -56,15 +59,19 @@ for traceDir in $traceDirs; do
 	already_done $curr
 	remaining $curr $numTraceDirs
 	percentage $curr $numTraceDirs
-	echo -ne " Post-processing and zipping $traceName"
+	echo -ne " Post-processing and zipping $traceName "
 
 	# Postprocessing trace
 	cd $traceDir
-	../$postProcessor ./kernelslist 2>> ../traces.err >> ../traces.log 
+	$postProcessor ./kernelslist
+	# remove raw traces
+	echo "Removing raw traces for $traceName "
+	rm *.trace
+	rm kernelslist
 	cd ..
 
 	# Zipping folder
-	zip "$traceName.zip" $traceName/*.traceg $traceName/*.g 2>> ./traces.err >> ./traces.log
+	zip "$traceName.zip" $traceName/*.traceg $traceName/*.g
 	
 	# Clear line
 	clean_line
